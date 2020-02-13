@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nsk-discon-test
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: nsk-discon-test
+  labels:
+    app: registry
+    service: registry
+spec:
+  ports:
+    - name: port-5000
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    app: registry
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+  name: registry
+  namespace: nsk-discon-test
+  labels:
+    app: registry
+    service: registry
+spec:
+  to:
+    kind: Service
+    name: registry
+  port:
+    targetPort: port-5000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry
+  namespace: nsk-discon-test
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 32Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+  namespace: nsk-discon-test
+  labels:
+    app: registry
+    service: registry
+spec:
+  selector:
+    matchLabels:
+      app: registry
+      service: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+        service: registry
+    spec:
+      restartPolicy: Always
+      containers:
+      - image: docker.io/registry:latest
+        name: registry
+        terminationMessagePath: /dev/termination-log
+        ports:
+        - containerPort: 5000
+          protocol: TCP
+        volumeMounts:
+        - name: registry
+          mountPath: /var/lib/registry
+      volumes:
+      - name: registry
+        persistentVolumeClaim:
+          claimName: registry
