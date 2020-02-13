@@ -40,4 +40,53 @@ a migration between cluster `Foo` and `Bar` (both remote clusters), while the
 control cluster lives in a cluster `Baz`. For the purposes of this article, the
 control cluster can, and will act as the target cluster for the migration workload.
 
+We will be using the CAM operator to install all components for both clusters,
+regardless of the presence of OLM.
+
 ## Installing the CAM in the control cluster (4.3.1)
+
+On an OpenShift 4.3.1 cluster, OLM is present and normally exposes Red Hat's
+catalog of optional operators that extend the cluster's functionality. In the
+case of a disconnected cluster, you will not have access to this external catalog.
+In order to make the catalog of operators available to your cluster, you will
+need to build your own catalog and then mirror all relevant images to an image
+registry that has been made available to both clusters.
+
+To begin, let's disable all the original OperatorSources that OCP 4 comes
+configured with by default (since you will not be able to connect with the
+remote catalog).
+
+`oc edit operatorhub cluster`
+
+Then edit the spec to read:
+
+```
+spec:
+  disableAllDefaultSources: true
+```
+
+This will effectively clear OLM's catalog of any operators so we can install
+our own custom build catalog.
+
+### Setting up a shared registry
+
+As mentioned before, you will need to run your own internal registry that
+will host the inventory of images necessary for the cluster to deploy CAM.
+This could be your own registry you have set up yourself that is network
+addressable by your control cluster. In our case, we'll simply set up a registry
+as a sample workload backed by a PV and host our images there.
+
+You can find an [example registry manifest](#) at this blog's [github page](#).
+
+If you checkout the github project and run the following command, you should
+have an (unsecured) registry available to host your images internally:
+
+`oc create -f $YOUR_CHECKOUT/registry.yml`
+
+### TODO:
+* Probably have pre-existing authenticated clients. Need to check that.
+* Not sure if the default openshift registry was sufficient. The disconnected
+documentation suggests that it is NOT because it does not support pushes by sha
+* Follow Jason's blog to get storage setup with caveats
+* Fill in links
+* Insecure notes
