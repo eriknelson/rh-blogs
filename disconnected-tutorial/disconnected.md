@@ -1,6 +1,11 @@
 # Running Cluster Application Migrations in a Disconnected Environment
 
-**TODO: Credit 4.3 documentation page on disconnected**
+In this tutorial, we'll walk through the setup and installation of the
+Cluster Application Migration tool in an environment with two clusters
+that have restricted network access, thus requiring you to configure OLM
+to use your own registry, and host your own images for it to access.
+It expands on the [official disconnected documentation](https://docs.openshift.com/container-platform/4.3/operators/olm-restricted-networks.html)
+and is specific to the CAM tool.
 
 ## Pre-requisites
 
@@ -444,13 +449,25 @@ podman $(podman create registry.redhat.io/rhcam-1-1/openshift-migration-rhel7-op
 
 > TODO: To be continued
 
-### TODO:
-* Auto storage
+---
+
+### Issues
+* Need storage story: Good - upstream noobaa without OLM, Best - OCS and MigStorage
+deployed from the operator
+* Using an unauthenticated registry here. Is there a preferred recommendation?
+The internal registry doesn't appear to be an option according to the docs:
+"The cluster’s internal registry cannot be used as the target registry because
+it does not support pushing without a tag, which is required during the mirroring process."
+* More "oc-like" export of the CA cert, although this shouldn't be required
+with oc 4.4, they have added a skip verification command that would remove
+the installation of the CA entirely.
+* Would much prefer not to have to manually trim all of the operators out of
+the catalog and have an argument in oc to specify only the operators you care
+about. RFE: https://issues.redhat.com/browse/RFE-591
+* Should not have to use offline-catalog or operator-courier at all. Needed
+to use offline-catalog because the --manifest-dir argument is broken with
+oc-4.3.1, (https://bugzilla.redhat.com/show_bug.cgi?id=1772942). This argument
+works in oc-4.4
 * Probably have pre-existing authenticated clients. Need to check that.
-* Not sure if the default openshift registry was sufficient. The disconnected
-documentation suggests that it is NOT because it does not support pushes by sha
-* Everything based on an open, insecure registry in control cluster is questionable.
-Need to see how to improve this.
-* Follow Jason's blog to get storage setup with caveats
 * Fill in links
-* Screenshots
+* Wire up screenshots
