@@ -434,10 +434,31 @@ to accept migrated workloads!
 
 ## Installing the CAM in the remote cluster (3.11)
 
+The process of installing CAM in a remote cluster, particularly a 3.x cluster,
+is somewhat different as the operator is not installed and managed via OLM, and
+is instead manually set up via manifest files extracted from our official images.
+
+To deploy the latest v1.1.1 remote cluster cam in disconnected, first extract
+the necessary pair of files off of their images: the `operator.yml` file, and the
+`controller-3.yml` file. Continuing to work in your chosen directory, run the
+following commands on your workstation that has connectivity to Red Hat's
+external registry:
+
+```
+podman cp $(podman create registry.redhat.io/rhcam-1-1/openshift-migration-rhel7-operator:v1.1):/operator.yml ./
+podman $(podman create registry.redhat.io/rhcam-1-1/openshift-migration-rhel7-operator:v1.1):/controller-3.yml ./
+```
+**TODO: Exactly how too pull images from registry in the control cluster?**
+
+> TODO: To be continued
+
 ### TODO:
+* Auto storage
 * Probably have pre-existing authenticated clients. Need to check that.
 * Not sure if the default openshift registry was sufficient. The disconnected
 documentation suggests that it is NOT because it does not support pushes by sha
+* Everything based on an open, insecure registry in control cluster is questionable.
+Need to see how to improve this.
 * Follow Jason's blog to get storage setup with caveats
 * Fill in links
-* Insecure notes
+* Screenshots
