@@ -210,7 +210,7 @@ to quay. As an example:
 operator-courier --verbose push ./manifests-497096358/cam-operator/cam-operator-uplmhfud eriknelson cam-operator 0.1.0 "$QUAY_TOKEN"
 ```
 
-> NOTE: If this appregistry did not already exist, Quay will create it as a private
+> IMPORTANT: If this appregistry did not already exist, Quay will create it as a private
 appregistry by default. It is imperative that you navigate through the quay UI
 to select your new app registry and configure its settings to mark it public.
 
