@@ -8,6 +8,7 @@
 * oc client tool > 4.3.1
 * openssl
 * [offline-cataloger](https://github.com/kevinrizza/offline-cataloger)
+* [operator-courier](https://github.com/operator-framework/operator-courier)
 
 ## Initial Assumptions
 
@@ -183,6 +184,47 @@ registry, and then build a catalog source from that. I should be able to just
 build the catalog source from the local disk. This whole following section
 should be ripped out.**
 
+Now that we've processed our catalog on disk to strictly be the cam-operator,
+we can ship this off to quay, from which we can use the oc tooling to build
+and push a `CatalogSource` image to your cluster's internal registry. To do
+this, we'll use a tool called operator courier.
+
+Running a tree command on your manifests directory, you'll see the overall
+layout, and the directory you'll ultimately use to push your operator's metadata
+to quay. As an example:
+
+```
+# tree -L 3 ./manifests-497096358
+./manifests-497096358
+└── cam-operator
+    └── cam-operator-uplmhfud
+        ├── mig-operator.package.yaml
+        ├── v1.0.0
+        ├── v1.0.1
+        ├── v1.1.0
+        └── v1.1.1
+
+operator-courier --verbose push ./manifests-497096358/cam-operator/cam-operator-uplmhfud eriknelson cam-operator 0.1.0 "$QUAY_TOKEN"
+```
+
+This command packaged up and pushed our operator metadata to our own appregistry,
+in this case "eriknelson". From here, we're able to use the oc client tooling to
+build and push a `CatalogSource` image based on our personal appregistry.
+
+NOTE: You should replace "eriknelson" with your own quay namespace name.
+
+```
+oc adm catalog build \
+  --appregistry-endpoint https://quay.io/cnr \
+  --appregistry-org eriknelson \
+  --to=$REGISTRY_ROUTE/appregistries/eriknelson:v1
+```
+
+Using `oc adm catalog build`, it downloaded the metadata we pushed to our own
+appregistry, build a `CatalogSource` image, and pushed that image to the exposed
+registry route. Although the image resides in our registry on the control cluster,
+the `CatalogSource` must still be deployed so it can expose the packages that it
+has available to OLM via its grpc API.
 
 ### TODO:
 * Probably have pre-existing authenticated clients. Need to check that.
