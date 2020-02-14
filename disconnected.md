@@ -1,9 +1,13 @@
 # Running Cluster Application Migrations in a Disconnected Environment
 
+**TODO: Credit 4.3 documentation page on disconnected**
+
 ## Pre-requisites
 
 * podman
 * oc client tool > 4.3.1
+* openssl
+* [offline-cataloger](https://github.com/kevinrizza/offline-cataloger)
 
 ## Initial Assumptions
 
@@ -82,6 +86,103 @@ If you checkout the github project and run the following command, you should
 have an (unsecured) registry available to host your images internally:
 
 `oc create -f $YOUR_CHECKOUT/registry.yml`
+
+> NOTE: Take time to inspect this registry file and tweak as you would like.
+By default, a 32Gi PVC is created.
+
+Running a few verification oc commands, we can see that we have a docker registry
+pod runing in the `nsk-discon-test` namespace, along with an external route,
+and a 32Gi PVC bound to the pod:
+
+```
+oc get
+# oc get pods; oc get pvc; oc get routes
+NAME                        READY   STATUS    RESTARTS   AGE
+registry-865966d8fd-gb2nd   1/1     Running   0          2m43s
+NAME       STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+registry   Bound    pvc-0c9a17fa-2599-4aba-9f2d-aaf5878cfeeb   32Gi       RWO            gp2            2m43s
+NAME       HOST/PORT                                                                         PATH   SERVICES   PORT        TERMINATION     WILDCARD
+registry   <<REGISTRY_ROUTE>>          registry   port-5000   edge/Redirect   None
+```
+
+
+**TODO**: Is this actually necessary if we're adding the CA bundle as trusted
+to the machine?
+
+Be sure to add this registry's route to the list of your insecure registries on
+the machine you're using to mirror the images (probably your laptop). This
+can be found in `/etc/containers/registries.conf`. Additionally, it's probably
+useful to export the snipped `<<REGISTRY_ROUTE>>` from the output above that
+will be your registry's specific address (replace `<<REGISTRY_ROUTE>>` with your address):
+
+`export REGISTRY_ROUTE=<<REGISTRY_ROUTE>>`
+
+We will refer to this address from now on as `$REGISTRY_ROUTE`.
+
+### Installing your registry's CA bundle as trusted
+
+Before we can build our own catalog and mirror our images into our registry,
+the CA needs to be installed as trusted by the machine that will be executing
+the mirror commands. The following script can be executed to install your
+registry's CA as a trusted authority:
+
+**TODO** What is the more "oc" direct way of exporing this without using openssl?
+
+```sh
+openssl s_client -showcerts -servername server \
+  -connect "$REGISTRY_ROUTE:443" > /tmp/my-registry.crt
+sudo cp /tmp/my-registry.crt /etc/pki/ca-trust/source/anchors/my-registry.crt
+sudo update-ca-trust
+```
+
+**TODO: This will be completely uncecessary with 4.4 tooling now that they've
+added a skip verification option**
+
+### Build a CatalogSource containing the operator metadata for OLM
+
+**TODO: Mention RFE to enhance tooling to support pulling specific operators?
+https://issues.redhat.com/browse/RFE-591**
+
+**TODO: It is currently impossible to run ocs in a disconnected environment because
+the images will be impossible to mirror via oc adm catalog mirror due to their
+metadata missing relatedImages**
+
+**TODO: oc adm catalog build 4.3.1 completely ignores the --manifest-dir argument...
+https://bugzilla.redhat.com/show_bug.cgi?id=1772942**
+
+
+The next step in the process is to build your own `CatalogSource` containing
+the operator metadata that OLM would normally pull remotely from Red Hat.
+Since we only care about the cam-operator, we're going to download all of Red
+Hat's operator catalog, but remove everything except for the cam-operator.
+
+Operator metadata can be downloaded and cataloged locally using the
+`offline-cataloger` tool mentioned in the pre-requisites. In addition to this
+tool, you will also need to generate a quay API token via quay.io, and export
+this token into your enviornment.
+
+`export QUAY_TOKEN=<your-quay-token>`
+
+For example: `export QUAY_TOKEN='basic <blob>'`
+
+Navigate to a known directory and run the following command to download the
+Red Hat operator metadata:
+
+`offline-cataloger generate-manifests -a "$QUAY_TOKEN" redhat-operators`
+
+You should end up with a `manifests-XXX` directory filled with all of the operator
+metadata that Red Hat currently publishes. To clean this of all but the cam-operator,
+run the following command:
+
+`cd <your-manifest-dir>; ls -1 | grep -v cam-operator | xargs -I{} rm {}`
+
+**TODO: Because I don't have a way to cut down on what's built with the
+oc tooling (featurem missing), and the --manifest-dir argument doesn't work with
+oc 4.3.1 tooling, I need to actually REPUBLISH this manifest to my own app
+registry, and then build a catalog source from that. I should be able to just
+build the catalog source from the local disk. This whole following section
+should be ripped out.**
+
 
 ### TODO:
 * Probably have pre-existing authenticated clients. Need to check that.
