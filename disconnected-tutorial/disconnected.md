@@ -181,7 +181,7 @@ run the following command:
 `cd <your-manifest-dir>; ls -1 | grep -v cam-operator | xargs -I{} rm {}`
 
 **TODO: Because I don't have a way to cut down on what's built with the
-oc tooling (featurem missing), and the --manifest-dir argument doesn't work with
+oc tooling (feature missing), and the --manifest-dir argument doesn't work with
 oc 4.3.1 tooling, I need to actually REPUBLISH this manifest to my own app
 registry, and then build a catalog source from that. I should be able to just
 build the catalog source from the local disk. This whole following section
