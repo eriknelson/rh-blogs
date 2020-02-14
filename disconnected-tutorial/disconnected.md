@@ -260,7 +260,7 @@ object. In my case, it was `eriknelson-manifests`.
 > IMPORTANT: Before you create this object, you should know that it will change your
 `MachineConfig` because it needs to manipulate underlying files on each of the
 nodes. This means the nodes **will be rebooted** following their update. It is
-likely you will experience some API serveri instability during this time.
+likely you will experience some API server instability during this time.
 
 Running `oc create -f ./eriknelson-manifests/imageContentSourcePolicy.yaml`
 
