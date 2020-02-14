@@ -48,6 +48,9 @@ control cluster can, and will act as the target cluster for the migration worklo
 We will be using the CAM operator to install all components for both clusters,
 regardless of the presence of OLM.
 
+> NOTE: You may see `o` used in lieu of `oc`. This is because I have an alias
+set up for convenience.
+
 ## Installing the CAM in the control cluster (4.3.1)
 
 On an OpenShift 4.3.1 cluster, OLM is present and normally exposes Red Hat's
@@ -284,7 +287,152 @@ Once the ICSP change has been rolled out to all the notes, you must now whitelis
 the registry that you have configured as an insecure registry so the cluster will
 not refuse images from an unverified registry:
 
+```
+export WHITELIST_PATCH="{\"spec\":{\"registrySources\":{\"insecureRegistries\":[\"$REGISTRY_ROUTE\"]}}}"
+oc patch images.config.openshift.io/cluster -p="$WHITELIST_PATCH" --type=merge
+```
 
+Unfortunately this patch will also mutate the `MachineConfig` and also require
+an additional rollout. Again you should wait until this is complete, and can
+monitor it's progress with the following command:
+
+`watch 'oc describe node -l node-role.kubernetes.io/worker= | grep -e Name: -e rendered'`
+
+Following these procedures, your cluster should now have your personal registry
+with all of your mirror'd images, and you have told OCP to defer to this registry
+when an application requests one of these images instead of pulling from Red Hat's
+external registry.
+
+### Deploying your internal CatalogSource and connecting to OLM
+
+Earlier in the process, we built our own `CatalogSource` image and pushed it
+to our registry. The image is safely stored there, but it must be deployed to
+expose its API to OLM, therefore alerting OLM to it's contents and making the
+operators it contains available for cluster deployment. To do this, first you'll
+need to retrieve the sha of your custom `CatalogSource` image. This can be
+retrieved using podman and inspecting the image's digest:
+
+> NOTE: Rememeber this pull spec must match the location that you originally
+build and pushed your `CatalogSource` image to. For your specific case, it will
+likely be different.
+
+First use podman to ensure that you have the image locally, and then you will
+be able to inspect it to determine its fully qualified name:
+```
+podman pull $REGISTRY_ROUTE/appregistries/eriknelson:v1
+
+podman inspect \
+    --format='{{index .RepoDigests 0}}' \
+    $REGISTRY_ROUTE/appregistries/eriknelson:v1
+
+[..OUTPUT...]
+<my-registry>/appregistries/eriknelson@sha256:<digest-blob>
+```
+
+Given the fully qualified `CatalogSource` image name we just determined, we're
+now able to deploy the image, which will inform OLM of its available packages.
+In our case, since we boiled down the entire catalog to just CAM, it should
+strictly be the CAM operator. Go ahead and create the following file on disk,
+and be sure to replace the image with the fully qualified `CatalogSource` image
+notated above.
+
+> NOTE: Because we are deploying CAM, which expects to live in the
+`openshift-migration` namespace, now is a good time to create that namespace
+with an `oc create ns openshift-migration`.
+
+```yml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cam-catalog-source
+  namespace: openshift-migration
+spec:
+  sourceType: grpc
+  image: <REPLACE_WITH_YOUR_FULL_IMAGE_NAME>
+  displayName: CAM Catalog
+```
+
+It is, in fact, important that this deployed `CatalogSource` actually be
+running in the `openshift-migration` namespace.
+
+You can confirm this has been deployed by checking the pods in the `openshift-migration`
+namespace, and can confirm it has been deployed from your internal registryy with a describe:
+```
+# o get pods -n openshift-migration
+NAME                       READY   STATUS    RESTARTS   AGE
+cam-catalog-source-nhjhh   1/1     Running   0          3m59s
+
+o describe pod cam-catalog-source-nhjhh
+```
+
+Additionally, confirm that OLM has been alerted that your package is now
+avialable to the cluster by running the following command, notice it is your
+specific catalog that is providing the package:
+
+```
+# o get packagemanifests
+NAME           CATALOG       AGE
+cam-operator   CAM Catalog   7m5s
+```
+
+### Installing the cam control cluster
+
+At this point, your operator is now available to be installed with OLM using
+the normal procedure via the UI, with the exception that the operator image,
+as well as all of our operand images (the various CAM components), will be
+actually deployed out of your custom registry rather than pulling from Red Hat's
+external registries.
+
+Go ahead and navigate to the OCP console and login, and choose the OperatorHub
+section in the left navigation. Be sure to select the `openshift-migration`
+namespace rather than the default that is normally selected. You should see cam
+as the sole operator available for installation. Go ahead and install the
+operator, ensuring it's installed into the `openshift-migration` namespace,
+and select the `release-v1.1` release channel. As of this writing, this should
+be our latest release: `v1.1.1`.
+
+**TODO: Screenshots**
+
+Dropping back to the command line, you should see a healthy migration operator
+running alongside the catalog source pod:
+
+```
+# o get pods
+NAME                                  READY   STATUS    RESTARTS   AGE
+cam-catalog-source-nhjhh              1/1     Running   0          15m
+migration-operator-866bb4cb54-dlf92   2/2     Running   0          40s
+```
+
+The `ImageContentSourcePolicy` created earlier will ensure that this image was
+pulled from the internal registry instead of some external registry.
+
+With a healthy operator ready to deploy the application, you can create the
+`MigrationController` object from the OCP UI under installed operators and
+accept the default arguments that are presented on the CR.
+
+**TODO: Screenshots**
+
+Again, dropping to the command line, you should see the operator roll out
+our various control cluster components, including the controller, the UI, and
+velero, all from your personal registry.
+
+```
+# o get pods
+NAME                                    READY   STATUS    RESTARTS   AGE
+cam-catalog-source-nhjhh                1/1     Running   0          21m
+migration-controller-6d59b8c4c6-njhlg   2/2     Running   0          41s
+migration-operator-866bb4cb54-dlf92     2/2     Running   0          7m23s
+migration-ui-5d7998b74f-cqgvx           1/1     Running   0          37s
+restic-f527s                            1/1     Running   0          59s
+restic-jfx8w                            1/1     Running   0          59s
+restic-kcwhn                            1/1     Running   0          59s
+velero-5bffbd77c4-j9ndw                 1/1     Running   0          59s
+```
+
+Congratulations, you've successfully installed your CAM control cluster, ready
+to accept migrated workloads!
+
+## Installing the CAM in the remote cluster (3.11)
 
 ### TODO:
 * Probably have pre-existing authenticated clients. Need to check that.
