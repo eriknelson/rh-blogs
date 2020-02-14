@@ -207,6 +207,12 @@ to quay. As an example:
 operator-courier --verbose push ./manifests-497096358/cam-operator/cam-operator-uplmhfud eriknelson cam-operator 0.1.0 "$QUAY_TOKEN"
 ```
 
+> NOTE: If this appregistry did not already exist, Quay will create it as a private
+appregistry by default. It is imperative that you navigate through the quay UI
+to select your new app registry and configure its settings to mark it public.
+
+**TODO: Insert screenshots**
+
 This command packaged up and pushed our operator metadata to our own appregistry,
 in this case "eriknelson". From here, we're able to use the oc client tooling to
 build and push a `CatalogSource` image based on our personal appregistry.
@@ -225,6 +231,60 @@ appregistry, build a `CatalogSource` image, and pushed that image to the exposed
 registry route. Although the image resides in our registry on the control cluster,
 the `CatalogSource` must still be deployed so it can expose the packages that it
 has available to OLM via its grpc API.
+
+### Mirroring all operator and operand images
+
+Of course, the `CatalogSource` only exposes the metadata about your operator
+to OLM. We also must mirror our operator's image, as well as all of the images
+that the operator itself will deploy (its operands, expressed as `relatedImages`).
+
+```
+oc adm catalog mirror \
+  $REGISTRY_ROUTE/appregistries/eriknelson:v1 \
+  $REGISTRY_ROUTE/openshift
+
+[...OUTPUT...]
+I0213 20:15:11.275417  445216 mirror.go:200] wrote database to /tmp/949582585/bundles.db
+
+
+info: Planning completed in 0s
+info: Mirroring completed in 0s (0B/s)
+I0213 20:15:11.279775  445216 mirror.go:298] wrote mirroring manifests to eriknelson-manifests
+```
+
+### Configuring your control cluster to deploy from its own registry
+
+At this point you have your `CatalogSource` and all of your required images
+mirror'd into your cluster and available via the registry that we created, but
+you still must configure OCP itself to defer to these images when external
+images are referenced. There is a specific object desinged for this purpose
+called the `ImageControlSourcePolicy`. Conveniently, the above mirror command
+outputs a directory by default from wherever it was run that contains this
+object. In my case, it was `eriknelson-manifests`.
+
+> IMPORTANT: Before you create this object, you should know that it will change your
+`MachineConfig` because it needs to manipulate underlying files on each of the
+nodes. This means the nodes **will be rebooted** following their update. It is
+likely you will experience some API serveri instability during this time.
+
+Running `oc create -f ./eriknelson-manifests/imageContentSourcePolicy.yaml`
+
+At this point you must wait for the new `MachineConfig` to roll out to each of
+your nodes, which can take some time depending on the size of your cluster.
+You can monitor the progress of this rollout with the following command, noting
+the current config, and desired config differences. It should have successfully
+finished once all of the current configs match the desired configs:
+
+`watch 'oc describe node -l node-role.kubernetes.io/worker= | grep -e Name: -e rendered'`
+
+**TODO: Is there any way this can be in a batch so there is only one rolling
+restart of the entire cluster?**
+
+Once the ICSP change has been rolled out to all the notes, you must now whitelist
+the registry that you have configured as an insecure registry so the cluster will
+not refuse images from an unverified registry:
+
+
 
 ### TODO:
 * Probably have pre-existing authenticated clients. Need to check that.
