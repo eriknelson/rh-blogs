@@ -245,14 +245,6 @@ that the operator itself will deploy (its operands, expressed as `relatedImages`
 oc adm catalog mirror \
   $REGISTRY_ROUTE/appregistries/eriknelson:v1 \
   $REGISTRY_ROUTE/openshift
-
-[...OUTPUT...]
-I0213 20:15:11.275417  445216 mirror.go:200] wrote database to /tmp/949582585/bundles.db
-
-
-info: Planning completed in 0s
-info: Mirroring completed in 0s (0B/s)
-I0213 20:15:11.279775  445216 mirror.go:298] wrote mirroring manifests to eriknelson-manifests
 ```
 
 ### Configuring your control cluster to deploy from its own registry
