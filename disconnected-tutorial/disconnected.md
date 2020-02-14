@@ -5,7 +5,7 @@ Cluster Application Migration tool in an environment with two clusters
 that have restricted network access, thus requiring you to configure OLM
 to use your own registry, and host your own images for it to access.
 It expands on the [official disconnected documentation](https://docs.openshift.com/container-platform/4.3/operators/olm-restricted-networks.html)
-and is specific to the CAM tool.
+but specifically focuses on the CAM tool and offline migraitons.
 
 ## Pre-requisites
 
@@ -219,7 +219,9 @@ operator-courier --verbose push ./manifests-497096358/cam-operator/cam-operator-
 appregistry by default. It is imperative that you navigate through the quay UI
 to select your new app registry and configure its settings to mark it public.
 
-**TODO: Insert screenshots**
+![Quay Appregistry Selection](./img/quay-appregistry-selection.png)
+
+![Appregistry Settings](./img/appregistry-settings-public.png)
 
 This command packaged up and pushed our operator metadata to our own appregistry,
 in this case "eriknelson". From here, we're able to use the oc client tooling to
@@ -388,7 +390,7 @@ operator, ensuring it's installed into the `openshift-migration` namespace,
 and select the `release-v1.1` release channel. As of this writing, this should
 be our latest release: `v1.1.1`.
 
-**TODO: Screenshots**
+![Cam in OperatorHub](./img/cam-in-oh.png)
 
 Dropping back to the command line, you should see a healthy migration operator
 running alongside the catalog source pod:
@@ -407,7 +409,9 @@ With a healthy operator ready to deploy the application, you can create the
 `MigrationController` object from the OCP UI under installed operators and
 accept the default arguments that are presented on the CR.
 
-**TODO: Screenshots**
+![MigrationController Selection](./img/mc-selection.png)
+
+![MigrationController Editor](./img/mc-edit.png)
 
 Again, dropping to the command line, you should see the operator roll out
 our various control cluster components, including the controller, the UI, and
