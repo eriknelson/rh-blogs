@@ -449,9 +449,9 @@ external registry:
 podman cp $(podman create registry.redhat.io/rhcam-1-1/openshift-migration-rhel7-operator:v1.1):/operator.yml ./
 podman $(podman create registry.redhat.io/rhcam-1-1/openshift-migration-rhel7-operator:v1.1):/controller-3.yml ./
 ```
-**TODO: Exactly how too pull images from registry in the control cluster?**
+**TODO: Exactly how to pull images from registry in the control cluster?**
 
-> TODO: To be continued
+> TODO: To be continued, see Jason
 
 ---
 
