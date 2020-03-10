@@ -10,22 +10,23 @@ but specifically focuses on the CAM tool and offline migraitons.
 ## Pre-requisites
 
 * podman
-* oc client tool > 4.3.1
-* openssl
-* [offline-cataloger](https://github.com/kevinrizza/offline-cataloger)
-* [operator-courier](https://github.com/operator-framework/operator-courier)
+* oc client tool > 4.3.5
+* A running registry that your clusters are able to deploy images from. You
+should also be able to push and pull images from this registry on your workstation.
+We'll assume this registry address has been exported to REGISTRY_ROUTE in your
+workstation's environment.
 
 ## Initial Assumptions
 
 Since the Cluster Application Migration suite can be configured in a number
 of different topologies, we're going to assume a standard deployment scenario
 where the customer has a 3.11 cluster running a workload that they desire to
-migrate to an OpenShift 4.3.1 cluster. We'll assume the OpenShift 4.3.1 cluster
+migrate to an OpenShift 4.3 cluster. We'll assume the OpenShift 4.3 cluster
 has already been provisioned and installed, but neither the 3.11 cluster, or
-the 4.3.1 cluster have network access to the outside world. Of particular importance,
+the 4.3 cluster have network access to the outside world. Of particular importance,
 however, is that the individual performing the migration *does* have external
-network access, as well as network access to both the 3.11 cluster and the 4.3.1
-cluster. Let's call the 3.11 cluster the "source" cluster, and the 4.3.1 cluster
+network access, as well as network access to both the 3.11 cluster and the 4.3
+cluster. Let's call the 3.11 cluster the "source" cluster, and the 4.3 cluster
 the "destination" cluster. When CAM is installed on a cluster, it is typically
 installed in one of two configurations:
 
@@ -41,7 +42,7 @@ unique property of a remote cluster is that a "mig" `ServiceAccount` is created
 and is granted a `cluster-admin` binding. This `ServiceAccount` token is registered
 along with the coordinates to the remote cluster with the control cluster so that
 the control cluster's "controller" may interface with the remote cluster's APIs
-as that `ServiceAccount`.
+acting as that `ServiceAccount`.
 
 > NOTE: The control cluster does not necessarily have to be the destination cluster
 for the migrated workload, although for the majority of users, this will be true.
@@ -56,9 +57,9 @@ regardless of the presence of OLM.
 > NOTE: You may see `o` used in lieu of `oc`. This is because I have an alias
 set up for convenience.
 
-## Installing the CAM in the control cluster (4.3.1)
+## Installing the CAM in the control cluster (4.3)
 
-On an OpenShift 4.3.1 cluster, OLM is present and normally exposes Red Hat's
+On an OpenShift 4.3 cluster, OLM is present and normally exposes Red Hat's
 catalog of optional operators that extend the cluster's functionality. In the
 case of a disconnected cluster, you will not have access to this external catalog.
 In order to make the catalog of operators available to your cluster, you will
@@ -156,7 +157,7 @@ https://issues.redhat.com/browse/RFE-591**
 the images will be impossible to mirror via oc adm catalog mirror due to their
 metadata missing relatedImages**
 
-**TODO: oc adm catalog build 4.3.1 completely ignores the --manifest-dir argument...
+**TODO: oc adm catalog build 4.3 completely ignores the --manifest-dir argument...
 https://bugzilla.redhat.com/show_bug.cgi?id=1772942**
 
 
@@ -187,7 +188,7 @@ run the following command:
 
 **TODO: Because I don't have a way to cut down on what's built with the
 oc tooling (feature missing), and the --manifest-dir argument doesn't work with
-oc 4.3.1 tooling, I need to actually REPUBLISH this manifest to my own app
+oc 4.3 tooling, I need to actually REPUBLISH this manifest to my own app
 registry, and then build a catalog source from that. I should be able to just
 build the catalog source from the local disk. This whole following section
 should be ripped out.**
@@ -470,7 +471,7 @@ the catalog and have an argument in oc to specify only the operators you care
 about. RFE: https://issues.redhat.com/browse/RFE-591
 * Should not have to use offline-catalog or operator-courier at all. Needed
 to use offline-catalog because the --manifest-dir argument is broken with
-oc-4.3.1, (https://bugzilla.redhat.com/show_bug.cgi?id=1772942). This argument
+oc-4.3, (https://bugzilla.redhat.com/show_bug.cgi?id=1772942). This argument
 works in oc-4.4
 * Probably have pre-existing authenticated clients. Need to check that.
 * Fill in links
