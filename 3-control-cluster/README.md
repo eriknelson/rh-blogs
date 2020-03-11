@@ -219,7 +219,48 @@ with your **remote cluster**, on your 4.x cluster, run:
 Uncheck Require SSL Verification if this is a self-signed cluster, and click
 Add Cluster. At this point you should see a successfully registered 4.x cluster.
 
-![Successful Remote Cluster](SuccessfulCluster.png)
+![Successful Remote Cluster](./SuccessfulCluster.png)
+
+### Registering a Replication Repository
+
+This step does not differ from a normal topology of 4.x being the **control cluster**,
+but we can quickly add a legitimate S3 bucket to act as intermediary storage:
+
+Click the Add button to add a Replication Repository and choose S3 from the dropdown.
+We'll use a standard Amazon S3 bucket.
+
+* Fill in a unique name for your repo
+* Fill in the amazon provided bucket name
+* Fill in the region that the bucket resides in (us-west-1 for me)
+* You can safely ignore the endpoint since this is not a self-hosted S3 instance
+and the amazon location is known
+* Fill in your access key, and secret access key values for the bucket
+* Here we can check "Require SSL Verification" since we'll want to verify the
+Amazon S3 CA. NOTE: If you were using self-hosted S3, you would have an opportunity
+to upload your own custom CA and ensure that it's verified.
+
+With all going well, we should now also have a Replication Repo ready to be used:
+
+![Successful Replication Repository](./SuccessfulStorage.png)
+
+### Executing a migration
+
+The next step is to create a Migration Plan to describe where, and what you
+would like to migrate. Click Add Plan, and give your plan a unique name.
+
+!TODO: UI is currently filtering "host" clusters from being allowed as source
+clusters. Need source change in the UI to allow for this.
+https://github.com/konveyor/mig-ui/pull/735
+
+!ISSUE, during PV discovery, controller is missing some RBAC to do PV disco
+    - category: Critical                                                                                                       
+      lastTransitionTime: "2020-03-11T17:24:51Z"                                                                               
+      message: 'Reconcile failed: [customresourcedefinitions.apiextensions.k8s.io                                              
+        is forbidden: User "system:serviceaccount:openshift-migration:migration-controller"                                    
+        cannot list customresourcedefinitions.apiextensions.k8s.io at the cluster                                              
+        scope: no RBAC policy matched]. See controller logs for details.'                                                      
+      status: "True"                                                                                                           
+      type: ReconcileFailed   
 
 # TODO:
 * Consistent branding, use CAM or Konveyor?
