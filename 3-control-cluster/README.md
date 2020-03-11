@@ -94,14 +94,51 @@ two tmux panes open simultaneously configured to each.
 
 Although CAM uses its operator to install and manage the lifecycle of the tool,
 OLM is not present by default in a 3.x cluster and must be manually installed
-and configured. First, we're going to export the `operator.yml` manifest file, as
+and configured. First, we're going to download the `operator.yml` manifest file, as
 well as a default `controller-3.yml` that will be used to tell the operator to
-configure the 3.x cluster as a **control cluster** for CAM. Execute the following
-commands and be sure to save these files off to a known location:
+configure the 3.x cluster as a **control cluster** for CAM. Be sure to put these
+in a known location.
 
-podman cp $(podman create quay.io/konveyor/mig-operator-container:latest):/operator.yml ./
-podman cp $(podman create quay.io/konveyor/mig-operator-container:latest):/controller-3.yml ./
+```
+wget https://raw.githubusercontent.com/konveyor/mig-operator/master/deploy/non-olm/latest/operator.yml
+wget https://raw.githubusercontent.com/konveyor/mig-operator/master/deploy/non-olm/latest/controller-3.yml
+```
 
+If you were using the 3.x cluster as a **remote cluster**, the default values
+inside of the `controller-3.yml` would work as-is. However, we're interested
+in using the 3.x cluster as a **control cluster**, so some modifications to the
+file are required. First, we're going to want to switch on the controller and
+the UI. You'll also note the commented out section stating that if you are
+going to run the controller on a 3.x cluster, you need to manually provide
+the API server coordinates as an argument to the operator. To get this value,
+you can run `oc cluster-info` and take the full URL reported. Here's my output,
+stripped of details of course:
+
+```
+# o cluster-info
+Kubernetes master is running at https://master.foo.bar.baz.com:443
+[...SNIP...]
+```
+
+
+Example:
+
+```
+apiVersion: migration.openshift.io/v1alpha1
+kind: MigrationController
+metadata:
+  name: migration-controller
+  namespace: openshift-migration
+spec:
+  azure_resource_group: ''
+  cluster_name: host
+  migration_velero: true
+  migration_controller: true
+  migration_ui: true
+  restic_timeout: 1h
+  # Obviously replace the below with your cluster's actual API URL
+  mig_ui_cluster_api_endpoint: https://master.foo.bar.baz.com:443
+```
 
 # TODO:
 * Consistent branding, use CAM or Konveyor?
