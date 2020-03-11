@@ -140,5 +140,87 @@ spec:
   mig_ui_cluster_api_endpoint: https://master.foo.bar.baz.com:443
 ```
 
+At this point you should see a full **control cluster** deployment in the
+`openshift-migration` namespace of your 3.x cluster:
+
+```
+# o get pods
+NAME                                   READY   STATUS    RESTARTS   AGE
+migration-controller-f75955f87-2mfk4   2/2     Running   0          1m
+migration-operator-77b7b5c7fd-mvf4b    2/2     Running   0          13m
+migration-ui-6cb6954c9c-grd2m          1/1     Running   0          1m
+restic-fnb65                           1/1     Running   0          5m
+restic-mrnxn                           1/1     Running   0          5m
+restic-pmrbk                           1/1     Running   0          5m
+restic-zcdbd                           1/1     Running   0          5m
+velero-74f5f6d78-n5tpx                 1/1     Running   0          5m
+```
+
+### CORS configuration
+
+One of the primary reasons we recommend users NOT use a 3.x cluster as a
+**control cluster** is that it requires [manual CORS configuration](https://docs.openshift.com/container-platform/3.11/architecture/infrastructure_components/web_console.html#overview) of the
+master config to specifically whitelist the migraiton UI, allowing API requests
+from what's configured an alternative origin. If a 4.x cluster is used as a
+**control cluster**, the operator is capable of transparently handling this
+configuration.
+
+First, you want to generate the correct regex string to set in the openshift
+configuration. This can be produced with the following command:
+
+`oc get -n openshift-migration route/migration -o go-template='(?i)//{{ .spec.host }}(:|\z){{ println }}' | sed 's,\.,\\.,g'`
+
+Output from this command will look something like this, but will be different for every cluster:
+(?i}//migration-openshift-migration\.apps\.foo\.bar\.baz\.com(:|\z)
+
+Add the output to /etc/origin/master/master-config.yaml under corsAllowedOrigins, for instance:
+
+corsAllowedOrigins:
+- (?i}//migration-openshift-migration\.apps\.foo\.bar\.baz\.com(:|\z)
+
+After making these changes on 3.x you'll need to restart OpenShift components to
+pick up the changed config values. The process for restarting 3.x control plane
+components differs based on the OpenShift version.
+
+> In OpenShift 3.7-3.9, the control plane runs within systemd services
+> $ systemctl restart atomic-openshift-master-api
+> $ systemctl restart atomic-openshift-master-controllers
+
+
+> In OpenShift 3.10-3.11, the control plane runs in 'Static Pods'
+> /usr/local/bin/master-restart api
+> /usr/local/bin/master-restart controllers
+
+## Executing a migration from 3.x to 4.x
+
+To get the route for the migration UI, run:
+
+`o get routes -n openshift-migration migration`
+
+Login via your cluster admin account. You will have only one cluster registered
+automatically, and that's the "host" cluster, or 3.x cluster you are using
+as your **control cluser**. The next step is to register your 4.x cluster.
+
+### Registering your 4.x remote cluster
+Using the cli tools configured to talk to the 4.x cluster, you'll need the
+coordinates to the API server, as well as the SA token that we mentioned
+earlier so our controller can communicate with it from within 3.
+
+Click Add Cluster and you should be presented with a dialog.
+Running `o cluster-info` on your 4.x cluster should provide you the URL to use.
+
+To export the mig `ServiceAccount` token the controller will use to communicate
+with your **remote cluster**, on your 4.x cluster, run:
+
+`o sa get-token mig -n openshift-migration`
+
+> NOTE: Ensure you enter this value *precisely* with no whitepace
+
+Uncheck Require SSL Verification if this is a self-signed cluster, and click
+Add Cluster. At this point you should see a successfully registered 4.x cluster.
+
+![Successful Remote Cluster](SuccessfulCluster.png)
+
 # TODO:
 * Consistent branding, use CAM or Konveyor?
+* Get rid of 'o' alias
